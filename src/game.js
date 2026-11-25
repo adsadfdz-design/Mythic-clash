@@ -89,12 +89,12 @@ export class Game {
     if(textureName)material.userData.textureName=textureName;
     this.materials.push(material);return material;
   }
-  _box(x,z,w,d,h,color,group=this.scene){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),this._mat(color));m.position.set(x,h/2,z);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;}
+  _box(x,z,w,d,h,color,group=this.scene,textureName=''){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),this._mat(color,.82,0,textureName));m.position.set(x,h/2,z);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;}
   _buildArena(){
     const ground=new THREE.Mesh(new THREE.PlaneGeometry(104,82),this._mat(0x71846a,.96,0,'terrain')); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; this.scene.add(ground);
-    LANES.forEach((z,i)=>{this._box(0,z,96,5.8,.18,i===1?0x8b8876:0x777d70); for(let x=-45;x<46;x+=5.2)this._box(x,z,.16,.23,.025,0xc1b99a);});
+    LANES.forEach((z,i)=>{this._box(0,z,96,5.8,.18,i===1?0x8b8876:0x777d70,this.scene,'stone'); for(let x=-45;x<46;x+=5.2)this._box(x,z,.16,.23,.025,0xc1b99a);});
     this._box(0,0,4.2,78,.12,0x256b76);
-    LANES.forEach(z=>{this._box(0,z,6.3,6.2,.26,0xa18a69); for(let k=-2;k<=2;k++)this._box(k,z,.12,5.8,.29,0xd0b78f);});
+    LANES.forEach(z=>{this._box(0,z,6.3,6.2,.26,0xa18a69); for(let k=-2;k<=2;k++)this._box(k,z,.12,5.8,.29,0xd0b78f,this.scene,'stone');});
     for(const z of [-29,29]){
       const pond=new THREE.Mesh(new THREE.CircleGeometry(5,24),this._mat(0x294e50)); pond.rotation.x=-Math.PI/2; pond.position.set(0,.04,z); this.scene.add(pond);
       for(let i=0;i<7;i++){const a=i/7*Math.PI*2;const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.75+Math.random()*.45),this._mat(0x56665f));rock.position.set(Math.cos(a)*6,.55,z+Math.sin(a)*6);rock.castShadow=true;this.scene.add(rock);}
@@ -215,9 +215,9 @@ export class Game {
   }
   _makeMinionMesh(team){
     const g=new THREE.Group();const color=team===1?0x5ba4e7:0xe16b75;
-    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.42,4,6),this._mat(color));body.position.y=.63;g.add(body);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),this._mat(0xd9c4aa));head.position.y=1.25;g.add(head);
-    const helm=new THREE.Mesh(new THREE.ConeGeometry(.22,.42,5),this._mat(team===1?0x9dc9f1:0xf0a2a7));helm.position.y=1.55;g.add(helm);
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.42,4,6),this._mat(color,.78,0,'armor'));body.position.y=.63;g.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),this._mat(0xd9c4aa,.8,0,'leather'));head.position.y=1.25;g.add(head);
+    const helm=new THREE.Mesh(new THREE.ConeGeometry(.22,.42,5),this._mat(team===1?0x9dc9f1:0xf0a2a7,.45,.18,'metal'));helm.position.y=1.55;g.add(helm);
     return g;
   }
 
@@ -236,8 +236,8 @@ export class Game {
   }
 
   _spawnCamp(z){
-    const g=new THREE.Group();const core=new THREE.Mesh(new THREE.DodecahedronGeometry(1.25,1),this._mat(0x6f817e,.45,.25));core.position.y=1.4;core.castShadow=true;g.add(core);
-    const horn=new THREE.Mesh(new THREE.ConeGeometry(.35,.8,6),this._mat(0xb4a18b));horn.position.set(.85,2,0);g.add(horn);
+    const g=new THREE.Group();const core=new THREE.Mesh(new THREE.DodecahedronGeometry(1.25,1),this._mat(0x6f817e,.45,.25,'crystal'));core.position.y=1.4;core.castShadow=true;g.add(core);
+    const horn=new THREE.Mesh(new THREE.ConeGeometry(.35,.8,6),this._mat(0xb4a18b,.48,.22,'metal'));horn.position.set(.85,2,0);g.add(horn);
     g.position.set(0,0,z);this.scene.add(g);
     const c={id:'camp-'+z,name:'Ancient Grove Beast',kind:'camp',team:0,lane:z<0?0:2,g,hp:950,maxHp:950,damage:42,speed:0,range:3.3,attackRate:1.3,attackTimer:0,dead:false,respawnTimer:0,gold:180,xp:210};
     this.units.push(c);return c;
@@ -246,14 +246,14 @@ export class Game {
   _spawnStructure(kind,team,lane){
     const g=new THREE.Group();const color=team===1?0x4d91d2:0xc85b68;
     if(kind==='tower'){
-      const base=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.35,1.2,8),this._mat(0x555d61,.6,.25));base.position.y=.6;g.add(base);
-      const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.55,.8,3.1,8),this._mat(color,.48,.18));shaft.position.y=2.65;shaft.castShadow=true;g.add(shaft);
-      const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(.76),this._mat(team===1?0x9edaff:0xff9da8,.25,.35));crystal.position.y=4.55;g.add(crystal);
-      const ring=new THREE.Mesh(new THREE.TorusGeometry(1.45,.09,6,24),this._mat(color));ring.rotation.x=Math.PI/2;ring.position.y=.08;g.add(ring);
+      const base=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.35,1.2,8),this._mat(0x555d61,.78,.05,'stone'));base.position.y=.6;g.add(base);
+      const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.55,.8,3.1,8),this._mat(color,.62,.12,'armor'));shaft.position.y=2.65;shaft.castShadow=true;g.add(shaft);
+      const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(.76),this._mat(team===1?0x9edaff:0xff9da8,.25,.35,'crystal'));crystal.position.y=4.55;g.add(crystal);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(1.45,.09,6,24),this._mat(color,.4,.4,'metal'));ring.rotation.x=Math.PI/2;ring.position.y=.08;g.add(ring);
     }else{
-      const plinth=new THREE.Mesh(new THREE.CylinderGeometry(2.3,3,1.2,8),this._mat(0x394954,.6,.2));plinth.position.y=.6;g.add(plinth);
-      const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(2.2,1),this._mat(team===1?0x55b7ec:0xee6479,.25,.35));crystal.position.y=3.15;crystal.castShadow=true;g.add(crystal);
-      const halo=new THREE.Mesh(new THREE.TorusGeometry(3.1,.11,8,32),this._mat(color));halo.position.y=1.25;g.add(halo);
+      const plinth=new THREE.Mesh(new THREE.CylinderGeometry(2.3,3,1.2,8),this._mat(0x394954,.78,.05,'stone'));plinth.position.y=.6;g.add(plinth);
+      const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(2.2,1),this._mat(team===1?0x55b7ec:0xee6479,.25,.35,'crystal'));crystal.position.y=3.15;crystal.castShadow=true;g.add(crystal);
+      const halo=new THREE.Mesh(new THREE.TorusGeometry(3.1,.11,8,32),this._mat(color,.4,.4,'metal'));halo.position.y=1.25;g.add(halo);
     }
     const x=team===1?(kind==='tower'?-23:-45):(kind==='tower'?23:45),z=kind==='core'?0:LANES[lane];
     g.position.set(x,0,z);this.scene.add(g);
