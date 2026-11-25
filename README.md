@@ -1,6 +1,6 @@
 # Mythic Clash
 
-Original 3D top-down lane arena, solo 3v3 against bots. The project is browser-first and uses Three.js through an import map (no bundler required).
+Original 3D top-down fantasy lane arena, solo 3v3 against bots. The project is browser-first and uses Three.js through an import map (no bundler required).
 
 ## Run locally
 
@@ -33,13 +33,15 @@ Touch devices receive a virtual joystick, attack, dodge and skill buttons.
 - src/main.js: hero draft, HUD, minimap, armory, scoreboard, pause and touch UI
 - src/game.js: 3D scene, procedural heroes, combat, bots, minions, towers, cores, items and progression
 - src/style.css: responsive HUD and screen styles
-- assets/textures/: original tileable SVG textures
+- assets/textures/: material atlas and seven SVG material slots
 - UPDATE_PLAN.md: large update roadmap
 - ART_BIBLE.md: texture map, material rules and hero silhouette guide
+- TEXTURE_ATLAS.md: source atlas cell map and material assignments
+- MODEL_PIPELINE.md: target specifications for production hero models and animation
 
 ## Deploy
 
-The GitHub Actions workflow publishes the repository root to GitHub Pages after pushes to main. Enable GitHub Pages with GitHub Actions as the source in repository settings once.
+Before the first deployment, open **Repository → Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. This one-time repository setting must be enabled by an owner/maintainer. The workflow then validates the project and deploys the repository root after pushes to main. The workflow deliberately does not try to create the Pages site with GITHUB_TOKEN; GitHub documents that the enablement operation requires a separate admin-capable token.
 
 ## Design principles
 
@@ -47,4 +49,4 @@ The art direction borrows general lessons from classic RTS readability — big s
 
 ## Status
 
-A feature-rich playable foundation has been committed, but this environment has not run a browser build or a full playtest. Known next steps are listed in UPDATE_PLAN.md; the textures and procedural models are first-pass assets pending visual QA.
+A feature-rich playable foundation has been committed, but this environment has not run a full browser playtest. The CI syntax/asset validator is separate from gameplay verification. Models are still procedural first-pass meshes; the production GLB/rig/animation pass is a planned milestone, not a claim about current model quality.
