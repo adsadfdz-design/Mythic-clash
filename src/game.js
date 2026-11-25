@@ -433,15 +433,21 @@ export class Game {
     const enemy=this._nearestEnemy(u,9,true);
     if(enemy){
       const d=enemy.g.position.distanceTo(u.g.position);if(d>u.range*.9)this._moveTowards(u,enemy.g.position,dt);else this._tryAttack(u,enemy,dt);
-      if(Math.random()<dt*.12){const skillIndex=Math.floor(Math.random()*3);this._castBot(u,skillIndex,enemy);}
+      if(u.cooldowns.r<=0&&(enemy.hp/enemy.maxHp<.42||u.hp/u.maxHp<.38)&&Math.random()<dt*.22)this._castBot(u,3,enemy);
+      else if(Math.random()<dt*.12){const skillIndex=Math.floor(Math.random()*3);this._castBot(u,skillIndex,enemy);}
     }else{const target=this._laneTarget(u.team,u.lane);if(target){if(u.g.position.distanceTo(target.g.position)<u.range+1)this._tryAttack(u,target,dt);else this._moveTowards(u,target.g.position,dt);}}
   }
   _castBot(u,index,target){
     const hero=HEROES.find(h=>h.id===u.heroId);if(!hero)return;
-    const sk=hero.skills[index],key=['q','w','e'][index];if((u.cooldowns[key]||0)>0)return;u.cooldowns[key]=sk[3];const type=sk[1];
-    if(type==='shield')this._shield(u,300,4);else if(type==='heal')this._heal(u,280);
+    const sk=hero.skills[index],key=['q','w','e','r'][index];if((u.cooldowns[key]||0)>0)return;u.cooldowns[key]=sk[3];const type=sk[1];
+    if(type==='shield')this._shield(u,340,4);
+    else if(type==='heal')this._heal(u,300);
     else if(type==='dash'||type==='blink')this._moveTowards(u,target.g.position.clone(),.7);
-    else{this._damage(target,sk[2]+u.power*.3,u);if(type==='slow')target.slowTimer=2;if(type==='root')target.rootTimer=1.2;}
+    else if(type==='buff'){u.buffTimer=5;u.damage=u.baseDamage*1.4;}
+    else{
+      const victims=type==='aoe'?this.units.filter(v=>!v.dead&&v.team!==u.team&&(v.kind==='hero'||v.kind==='minion')&&v.g.position.distanceTo(target.g.position)<6):[target];
+      victims.forEach(v=>{this._damage(v,sk[2]+u.power*.3,u);if(type==='slow')v.slowTimer=2;if(type==='root')v.rootTimer=1.2;if(type==='pull'){const d=u.g.position.clone().sub(v.g.position);d.y=0;if(d.length()>0)v.g.position.add(d.normalize().multiplyScalar(1.6));}});
+    }
   }
   _minionAi(u,dt){
     if(u.dead)return;u.attackTimer-=dt;
