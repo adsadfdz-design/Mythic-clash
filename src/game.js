@@ -64,7 +64,7 @@ export class Game {
     sun.shadow.mapSize.set(1024,1024); sun.shadow.camera.left=-55; sun.shadow.camera.right=55; sun.shadow.camera.top=45; sun.shadow.camera.bottom=-45;
     this.scene.add(sun);
     this.raycaster=new THREE.Raycaster(); this.pointer=new THREE.Vector2(); this.groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
-    this.units=[]; this.structures=[]; this.effects=[]; this.trees=[]; this.materials=[]; this.textures={}; this._loadTextures();
+    this.units=[]; this.structures=[]; this.effects=[]; this.trees=[]; this.materials=[]; this.pings=[]; this.textures={}; this._loadTextures();
     this.keys={}; this.moveVector=vec(); this.touchVector=vec(); this.moveOrder=null; this.aim=vec(0,0);
     this.player=null; this.selectedTarget=null; this.time=720; this.running=false; this.paused=false; this.ended=false;
     this.goldTimer=0; this.waveTimer=0; this.hudTimer=0; this.stats={kills:0,deaths:0,assists:0,towers:0,goldEarned:0};
@@ -74,7 +74,7 @@ export class Game {
 
   _loadTextures(){
     const loader=new THREE.TextureLoader();
-    ['terrain','armor','cloth','leather','metal','crystal','stone'].forEach(name=>{
+    ['terrain','armor','cloth','leather','metal','crystal','stone','bark','moss','wood','water','ash','sand','lava','rune'].forEach(name=>{
       const texture=loader.load(new URL('../assets/textures/'+name+'.svg',import.meta.url).href,()=>{
         this.materials.filter(m=>m.userData.textureName===name).forEach(m=>{m.map=texture;m.needsUpdate=true;});
       });
@@ -94,18 +94,20 @@ export class Game {
     const ground=new THREE.Mesh(new THREE.PlaneGeometry(104,82),this._mat(0x71846a,.96,0,'terrain')); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; this.scene.add(ground);
     LANES.forEach((z,i)=>{this._box(0,z,96,5.8,.18,i===1?0x8b8876:0x777d70,this.scene,'stone'); for(let x=-45;x<46;x+=5.2)this._box(x,z,.16,.23,.025,0xc1b99a);});
     this._box(0,0,4.2,78,.12,0x256b76);
-    LANES.forEach(z=>{this._box(0,z,6.3,6.2,.26,0xa18a69); for(let k=-2;k<=2;k++)this._box(k,z,.12,5.8,.29,0xd0b78f,this.scene,'stone');});
+    LANES.forEach(z=>{this._box(0,z,6.3,6.2,.26,0x846b4e,this.scene,'wood'); for(let k=-2;k<=2;k++)this._box(k,z,.12,5.8,.29,0xd0b78f,this.scene,'wood');});
     for(const z of [-29,29]){
-      const pond=new THREE.Mesh(new THREE.CircleGeometry(5,24),this._mat(0x294e50)); pond.rotation.x=-Math.PI/2; pond.position.set(0,.04,z); this.scene.add(pond);
+      const pond=new THREE.Mesh(new THREE.CircleGeometry(5,24),this._mat(0x4d8d98,.28,.2,'water')); pond.rotation.x=-Math.PI/2; pond.position.set(0,.04,z); this.scene.add(pond);
       for(let i=0;i<7;i++){const a=i/7*Math.PI*2;const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.75+Math.random()*.45),this._mat(0x56665f));rock.position.set(Math.cos(a)*6,.55,z+Math.sin(a)*6);rock.castShadow=true;this.scene.add(rock);}
-      const rune=new THREE.Mesh(new THREE.TorusGeometry(4.2,.08,6,36),this._mat(0x65b8b1,.45,.2));rune.rotation.x=Math.PI/2;rune.position.set(0,.12,z);this.scene.add(rune);
+      const rune=new THREE.Mesh(new THREE.TorusGeometry(4.2,.08,6,36),this._mat(0x65b8b1,.36,.25,'rune'));rune.rotation.x=Math.PI/2;rune.position.set(0,.12,z);this.scene.add(rune);
+      this._box(-19,z,10,8,.06,0x9c805b,this.scene,'sand');
+      this._box(19,z,10,8,.06,z<0?0x645754:0x503d37,this.scene,z<0?'ash':'lava');
     }
     for(let i=0;i<68;i++){
       const x=(Math.random()-.5)*96,z=(Math.random()-.5)*70;
       if(Math.abs(z)<22 || Math.abs(x)<7 || Math.abs(x)>47)continue;
       const t=new THREE.Group();t.position.set(x,0,z);
-      const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.28,2.2,6),this._mat(0x5f4937));trunk.position.y=1.1;t.add(trunk);
-      const crown=new THREE.Mesh(new THREE.ConeGeometry(1.4,3.4,7),this._mat(i%2?0x376347:0x456e4c));crown.position.y=3.1;crown.castShadow=true;t.add(crown);this.scene.add(t);this.trees.push(t);
+      const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.28,2.2,6),this._mat(0x6f4e35,.92,0,'bark'));trunk.position.y=1.1;t.add(trunk);
+      const crown=new THREE.Mesh(new THREE.ConeGeometry(1.4,3.4,7),this._mat(i%2?0x477d50:0x5d8955,.96,0,'moss'));crown.position.y=3.1;crown.castShadow=true;t.add(crown);this.scene.add(t);this.trees.push(t);
     }
     for(const side of [-1,1]) for(const z of LANES)this._box(side*35,z,.35,.35,4,side<0?0x64a8e8:0xe36b76);
   }
@@ -251,7 +253,7 @@ export class Game {
       const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(.76),this._mat(team===1?0x9edaff:0xff9da8,.25,.35,'crystal'));crystal.position.y=4.55;g.add(crystal);
       const ring=new THREE.Mesh(new THREE.TorusGeometry(1.45,.09,6,24),this._mat(color,.4,.4,'metal'));ring.rotation.x=Math.PI/2;ring.position.y=.08;g.add(ring);
     }else{
-      const plinth=new THREE.Mesh(new THREE.CylinderGeometry(2.3,3,1.2,8),this._mat(0x394954,.78,.05,'stone'));plinth.position.y=.6;g.add(plinth);
+      const plinth=new THREE.Mesh(new THREE.CylinderGeometry(2.3,3,1.2,8),this._mat(team===1?0x526c50:0x60413b,.76,.08,team===1?'moss':'lava'));plinth.position.y=.6;g.add(plinth);
       const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(2.2,1),this._mat(team===1?0x55b7ec:0xee6479,.25,.35,'crystal'));crystal.position.y=3.15;crystal.castShadow=true;g.add(crystal);
       const halo=new THREE.Mesh(new THREE.TorusGeometry(3.1,.11,8,32),this._mat(color,.4,.4,'metal'));halo.position.y=1.25;g.add(halo);
     }
@@ -291,14 +293,15 @@ export class Game {
   issueMove(){if(!this.player||this.player.dead)return;this.moveOrder=vec(clamp(this.aim.x,-47,47),clamp(this.aim.z,-34,34));this.selectedTarget=null;}
   primaryAttack(){
     if(!this.player||this.player.dead)return;
-    const nearby=this._hostiles(this.player.team).filter(u=>u.kind==='hero'||u.kind==='minion'||u.kind==='tower'||u.kind==='core').sort((a,b)=>a.g.position.distanceTo(this.aim)-b.g.position.distanceTo(this.aim));
+    const nearby=[...this._hostiles(this.player.team),...this.units.filter(u=>u.kind==='camp'&&!u.dead)].filter(u=>u.kind==='hero'||u.kind==='minion'||u.kind==='tower'||u.kind==='core'||u.kind==='camp').sort((a,b)=>a.g.position.distanceTo(this.aim)-b.g.position.distanceTo(this.aim));
     const candidate=nearby[0]&&nearby[0].g.position.distanceTo(this.aim)<5?nearby[0]:this._nearestEnemy(this.player,13);
     this.selectedTarget=candidate||null;if(!candidate)this.issueMove();
   }
-  _hostiles(team){return [...this.units,...this.structures].filter(u=>!u.dead&&(u.team===0?u.kind==='camp':u.team!==team));}
+  _hostiles(team){return [...this.units,...this.structures].filter(u=>!u.dead&&u.team!==0&&u.team!==team);}
+  _nearestCamp(from,range=18){return this.units.filter(u=>u.kind==='camp'&&!u.dead&&u.g.position.distanceTo(from.g.position)<range).sort((a,b)=>a.g.position.distanceTo(from.g.position)-b.g.position.distanceTo(from.g.position))[0]||null;}
   _nearestEnemy(from,range=12,includeMinions=true){
     return this._hostiles(from.team).filter(u=>u.kind!=='core'&&u.kind!=='tower'&&(includeMinions||u.kind!=='minion')&&u.hp>0&&u.g.position.distanceTo(from.g.position)<range)
-      .sort((a,b)=>a.g.position.distanceTo(from.g.position)-b.g.position.distanceTo(from.g.position))[0]||null;
+      .sort((a,b)=>{const priority=u=>u.kind==='hero'?0:1;return priority(a)-priority(b)||(a.hp/a.maxHp)-(b.hp/b.maxHp)||a.g.position.distanceTo(from.g.position)-b.g.position.distanceTo(from.g.position);})[0]||null;
   }
   _nearestAlly(from,range=12){
     return this.units.filter(u=>!u.dead&&u.team===from.team&&u.kind==='hero'&&u!==from&&u.hp<u.maxHp&&u.g.position.distanceTo(from.g.position)<range).sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp)[0]||from;
@@ -309,6 +312,7 @@ export class Game {
 
   _damage(target,amount,source){
     if(!target||target.dead||amount<=0||target.invulnTimer>0)return;
+    if(target.kind==='core'&&source?.team&&this._towerFor(target.team,source.lane))return;
     if(target.shield>0){const absorbed=Math.min(target.shield,amount);target.shield-=absorbed;amount-=absorbed;}
     if(amount<=0)return;
     const armor=target.armor||0;const actual=Math.max(1,amount*(100/(100+armor)));target.hp-=actual;
@@ -326,13 +330,17 @@ export class Game {
       else if(source?.team===1&&source.kind==='hero'&&source!==this.player){this.player.gold+=45;this.player.xp+=45;}
       this._assistRewards(source,target);target.g.visible=false;
     }else if(target.kind==='minion'){
-      if(source?.team===1){const reward=target.gold||22;this.player.gold+=reward;this.player.xp+=20;this.stats.goldEarned+=reward;}
+      const reward=target.gold||22;
+      if(source?.kind==='hero'){source.gold+=reward;source.xp+=24;if(source.isPlayer)this.stats.goldEarned+=reward;}
+      if(source?.team)this.units.filter(u=>u.kind==='hero'&&u.team===source.team&&!u.dead&&u.g.position.distanceTo(target.g.position)<16).forEach(u=>{if(u!==source)u.xp+=10;});
       target.g.visible=false;this.scene.remove(target.g);
     }else if(target.kind==='camp'){
-      target.g.visible=false;target.respawnTimer=55;this.onFeed('Ancient Grove Beast defeated: team gold and experience awarded.');
-      this.units.filter(u=>u.team===1&&u.kind==='hero').forEach(u=>{u.gold+=target.gold;u.xp+=target.xp;});this.stats.goldEarned+=target.gold;
+      target.g.visible=false;target.respawnTimer=55;this.onFeed('Grove camp captured: team gold, experience and a 24-second blessing.');
+      const rewardTeam=source?.team||0;
+      if(rewardTeam){const teamHeroes=this.units.filter(u=>u.team===rewardTeam&&u.kind==='hero');teamHeroes.forEach(u=>{u.gold+=90;u.xp+=target.xp;u.campBuffTimer=24;});if(rewardTeam===1)this.stats.goldEarned+=90*teamHeroes.length;}
     }else if(target.kind==='tower'){
-      this.scene.remove(target.g);if(source?.team===1){this.stats.towers++;this.player.gold+=180;this.player.xp+=140;this.stats.goldEarned+=180;}
+      this.scene.remove(target.g);
+      if(source?.team){const teamHeroes=this.units.filter(u=>u.team===source.team&&u.kind==='hero');teamHeroes.forEach(u=>{u.gold+=60;u.xp+=90;});if(source.team===1){this.stats.towers++;this.stats.goldEarned+=180;}}
       this.onFeed((target.team===1?'Alliance':'Rift')+' tower destroyed on '+['top','middle','bottom'][target.lane]+' lane.');
     }else if(target.kind==='core'){this.scene.remove(target.g);this._finish(target.team===1?'defeat':'victory');}
   }
@@ -347,6 +355,11 @@ export class Game {
   _burst(position,color=0x9bd8ff,size=1.2){
     const mesh=new THREE.Mesh(new THREE.SphereGeometry(size,10,8),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.42,wireframe:true}));
     mesh.position.copy(position);this.scene.add(mesh);this.effects.push({mesh,life:.45,maxLife:.45,scale:2.6});
+  }
+  _queueBlast(position,radius,damage,source,color,status={}){
+    const mesh=new THREE.Mesh(new THREE.RingGeometry(radius*.82,radius,48),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.46,side:THREE.DoubleSide,depthWrite:false}));
+    mesh.rotation.x=-Math.PI/2;mesh.position.copy(position);mesh.position.y=.1;mesh.scale.setScalar(.82);this.scene.add(mesh);
+    this.effects.push({mesh,life:.52,maxLife:.52,scale:.22,kind:'blast',position:position.clone(),radius,damage,source,status});
   }
   _beam(from,to,color=0x9bd8ff){
     const a=from.clone();a.y+=1;const b=to.clone();b.y+=1;const d=b.clone().sub(a);
@@ -374,9 +387,11 @@ export class Game {
       const ally=this._nearestAlly(p,12);this._heal(ally,360+p.power*.6);this._heal(p,140);this._beam(p.g.position,ally.g.position,0x83e6ad);this._burst(ally.g.position.clone().add(vec(0,1.3)),0x83e6ad,1.5);
     }else if(type==='buff'){
       p.buffTimer=6;p.damage=p.baseDamage*1.55;this._burst(p.g.position.clone().add(vec(0,1.2)),color,1.5);
+    }else if(type==='aoe'){
+      this._queueBlast(aim.clone(),7.5,power*(p.campBuffTimer>0?1.12:1),p,color);
     }else{
       if(target){
-        const affected=type==='aoe'||type==='pull'?targets.slice(0,7):[target];
+        const affected=type==='pull'?targets.slice(0,7):[target];
         affected.forEach(t=>{
           let dmg=power;if(type==='execute'&&t.hp/t.maxHp<.35)dmg*=1.8;
           this._damage(t,dmg,p);if(type==='slow')t.slowTimer=3.4;if(type==='root')t.rootTimer=2;
@@ -384,7 +399,6 @@ export class Game {
           this._beam(p.g.position,t.g.position,color);
         });
       }else if(type!=='aoe')this.onFeed(skill[0]+': no target in range.');
-      if(type==='aoe')this._burst(aim.clone().add(vec(0,.6)),color,4);
     }
     this.onFeed(p.name+' used '+skill[0]+'.');this._emitHud();
   }
@@ -398,14 +412,17 @@ export class Game {
     p.g.position.x=clamp(p.g.position.x,-47,47);p.g.position.z=clamp(p.g.position.z,-34,34);
     p.invulnTimer=.36;p.dodgeCooldown=2.5;this._burst(p.g.position.clone().add(vec(0,1)),0x9edcff,1.3);return true;
   }
+  ping(type='attack'){
+    if(!this.player||this.player.dead)return;
+    const color=type==='defend'?0x7dc9ff:0xe7c27b;
+    const ring=new THREE.Mesh(new THREE.RingGeometry(1.5,1.85,32),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.86,side:THREE.DoubleSide}));
+    ring.rotation.x=-Math.PI/2;ring.position.copy(this.aim);ring.position.y=.16;this.scene.add(ring);this.effects.push({mesh:ring,life:1.15,maxLife:1.15,scale:2.2});
+    this.units.filter(u=>u.kind==='hero'&&u.team===1&&!u.isPlayer&&!u.dead).forEach(u=>{u.botOrder={type,position:this.aim.clone(),time:10};});
+    this.onFeed(type==='defend'?'Defend ping sent.':'Attack ping sent.');
+  }
   setPaused(value){this.paused=!!value;this._emitHud();}
   _playerTick(dt){
     const p=this.player;if(!p||p.dead)return;
-    Object.keys(p.cooldowns).forEach(k=>p.cooldowns[k]=Math.max(0,p.cooldowns[k]-dt));
-    if(p.shieldTimer>0){p.shieldTimer-=dt;if(p.shieldTimer<=0)p.shield=0;}
-    if(p.slowTimer>0)p.slowTimer-=dt;if(p.rootTimer>0)p.rootTimer-=dt;
-    if(p.buffTimer>0){p.buffTimer-=dt;if(p.buffTimer<=0)p.damage=p.baseDamage;}
-    p.hp=Math.min(p.maxHp,p.hp+(p.regen||2)*dt);p.dodgeCooldown=Math.max(0,(p.dodgeCooldown||0)-dt);p.invulnTimer=Math.max(0,(p.invulnTimer||0)-dt);
     const input=this.moveVector.clone().add(this.touchVector);if(input.lengthSq()>1)input.normalize();
     if(input.lengthSq()>.01&&!p.rootTimer){p.g.position.addScaledVector(input,p.speed*dt);this.moveOrder=null;}
     else if(this.selectedTarget&&!this.selectedTarget.dead){
@@ -423,39 +440,48 @@ export class Game {
   _tryAttack(u,target,dt){
     if(!target||target.dead)return;u.attackTimer-=dt;
     if(u.attackTimer<=0&&u.g.position.distanceTo(target.g.position)<=u.range+1){
-      u.attackTimer=u.attackRate*(1-(u.haste||0));const dmg=u.damage+(u.buffTimer>0?u.damage*.4:0);
+      u.attackTimer=u.attackRate*(1-(u.haste||0));const campMultiplier=u.campBuffTimer>0?1.18:1;const dmg=(u.damage+(u.buffTimer>0?u.damage*.4:0))*campMultiplier;
       this._damage(target,dmg,u);this._beam(u.g.position,target.g.position,u.team===1?0x83c7ff:0xff9aa5);
       if(u.lifesteal&&u.kind==='hero')this._heal(u,dmg*u.lifesteal);
     }
   }
   _tickBotStatus(u,dt){
     if(u.shieldTimer>0){u.shieldTimer-=dt;if(u.shieldTimer<=0)u.shield=0;}
-    if(u.slowTimer>0)u.slowTimer-=dt;
-    if(u.rootTimer>0)u.rootTimer-=dt;
-    if(u.buffTimer>0){u.buffTimer-=dt;if(u.buffTimer<=0)u.damage=u.baseDamage;}
-    if(u.invulnTimer>0)u.invulnTimer-=dt;
+    for(const key of Object.keys(u.cooldowns||{}))u.cooldowns[key]=Math.max(0,u.cooldowns[key]-dt);
+    u.slowTimer=Math.max(0,(u.slowTimer||0)-dt);u.rootTimer=Math.max(0,(u.rootTimer||0)-dt);u.stunTimer=Math.max(0,(u.stunTimer||0)-dt);
+    u.buffTimer=Math.max(0,(u.buffTimer||0)-dt);u.campBuffTimer=Math.max(0,(u.campBuffTimer||0)-dt);
+    if(u.buffTimer<=0)u.damage=u.baseDamage;
+    u.invulnTimer=Math.max(0,(u.invulnTimer||0)-dt);u.dodgeCooldown=Math.max(0,(u.dodgeCooldown||0)-dt);
     u.hp=Math.min(u.maxHp,u.hp+(u.regen||2)*dt);
   }
   _heroAi(u,dt){
     if(u.dead||u.isPlayer)return;
-    const enemy=this._nearestEnemy(u,9,true);
-    if(enemy){
-      const d=enemy.g.position.distanceTo(u.g.position);if(d>u.range*.9)this._moveTowards(u,enemy.g.position,dt);else this._tryAttack(u,enemy,dt);
-      if(u.cooldowns.r<=0&&(enemy.hp/enemy.maxHp<.42||u.hp/u.maxHp<.38)&&Math.random()<dt*.22)this._castBot(u,3,enemy);
-      else if(Math.random()<dt*.12){const skillIndex=Math.floor(Math.random()*3);this._castBot(u,skillIndex,enemy);}
-    }else{const target=this._laneTarget(u.team,u.lane);if(target){if(u.g.position.distanceTo(target.g.position)<u.range+1)this._tryAttack(u,target,dt);else this._moveTowards(u,target.g.position,dt);}}
+    const home=this._coreFor(u.team),enemy=this._nearestEnemy(u,11,true);
+    if(u.hp/u.maxHp<.28&&enemy){if(home)this._moveTowards(u,home.g.position,dt);return;}
+    if(u.botOrder){u.botOrder.time-=dt;if(u.botOrder.time<=0)u.botOrder=null;
+      else if(u.botOrder.type==='defend'&&home){const threat=this._nearestEnemy(u,18,true);if(threat){if(u.g.position.distanceTo(threat.g.position)>u.range*.9)this._moveTowards(u,threat.g.position,dt);else this._tryAttack(u,threat,dt);}else this._moveTowards(u,home.g.position,dt);if(u.g.position.distanceTo(home.g.position)<13)u.botOrder=null;return;}
+      else if(u.botOrder.type==='attack'){const marked=this._nearestEnemy(u,13,true);if(marked){if(u.g.position.distanceTo(marked.g.position)>u.range*.9)this._moveTowards(u,marked.g.position,dt);else this._tryAttack(u,marked,dt);return;}if(u.g.position.distanceTo(u.botOrder.position)>u.range+2){this._moveTowards(u,u.botOrder.position,dt);return;}u.botOrder=null;}}
+    if(enemy){const d=enemy.g.position.distanceTo(u.g.position);if(d>u.range*.88)this._moveTowards(u,enemy.g.position,dt);else this._tryAttack(u,enemy,dt);
+      const hero=HEROES.find(h=>h.id===u.heroId);
+      if(u.hp/u.maxHp<.62){const defensive=hero.skills.findIndex((sk,i)=>i<3&&(sk[1]==='shield'||sk[1]==='heal'));if(defensive>=0)this._castBot(u,defensive,enemy);}
+      if((u.cooldowns.r||0)<=0&&(enemy.hp/enemy.maxHp<.48||u.hp/u.maxHp<.34))this._castBot(u,3,enemy);
+      else if(d<Math.max(9,u.range+1)){const candidate=[0,1,2].find(i=>(u.cooldowns[['q','w','e'][i]]||0)<=0&&['bolt','aoe','root','slow','pull','dash','blink','buff'].includes(hero.skills[i][1]));if(candidate!==undefined)this._castBot(u,candidate,enemy);}
+      return;}
+    const laneEnemy=this.units.filter(v=>!v.dead&&v.team!==u.team&&(v.kind==='hero'||v.kind==='minion')&&v.lane===u.lane&&v.g.position.distanceTo(u.g.position)<14).sort((a,b)=>a.g.position.distanceTo(u.g.position)-b.g.position.distanceTo(u.g.position))[0];
+    if(laneEnemy){if(u.g.position.distanceTo(laneEnemy.g.position)>u.range*.9)this._moveTowards(u,laneEnemy.g.position,dt);else this._tryAttack(u,laneEnemy,dt);return;}
+    if(u.hp/u.maxHp>.72&&(u.campDecision||0)<=0){u.campDecision=10;const camp=this._nearestCamp(u,42);if(camp)u.campTarget=camp;}else u.campDecision=Math.max(0,(u.campDecision||0)-dt);
+    if(u.campTarget&&!u.campTarget.dead){if(u.g.position.distanceTo(u.campTarget.g.position)<u.range+1)this._tryAttack(u,u.campTarget,dt);else this._moveTowards(u,u.campTarget.g.position,dt);return;}
+    u.campTarget=null;const target=this._laneTarget(u.team,u.lane);if(target){if(u.g.position.distanceTo(target.g.position)<u.range+1)this._tryAttack(u,target,dt);else this._moveTowards(u,target.g.position,dt);}
   }
   _castBot(u,index,target){
-    const hero=HEROES.find(h=>h.id===u.heroId);if(!hero)return;
-    const sk=hero.skills[index],key=['q','w','e','r'][index];if((u.cooldowns[key]||0)>0)return;u.cooldowns[key]=sk[3];const type=sk[1];
-    if(type==='shield')this._shield(u,340,4);
-    else if(type==='heal')this._heal(u,300);
-    else if(type==='dash'||type==='blink')this._moveTowards(u,target.g.position.clone(),.7);
+    const hero=HEROES.find(h=>h.id===u.heroId);if(!hero||!target||target.dead)return;
+    const sk=hero.skills[index],key=['q','w','e','r'][index],type=sk[1];if((u.cooldowns[key]||0)>0)return;
+    if(type==='shield')this._shield(u,340,4);else if(type==='heal')this._heal(this._nearestAlly(u,12),300);
+    else if(type==='dash'||type==='blink'){const delta=target.g.position.clone().sub(u.g.position);if(delta.lengthSq()>0)u.g.position.addScaledVector(delta.normalize(),type==='dash'?4.5:6.5);}
     else if(type==='buff'){u.buffTimer=5;u.damage=u.baseDamage*1.4;}
-    else{
-      const victims=type==='aoe'?this.units.filter(v=>!v.dead&&v.team!==u.team&&(v.kind==='hero'||v.kind==='minion')&&v.g.position.distanceTo(target.g.position)<6):[target];
-      victims.forEach(v=>{this._damage(v,sk[2]+u.power*.3,u);if(type==='slow')v.slowTimer=2;if(type==='root')v.rootTimer=1.2;if(type==='pull'){const d=u.g.position.clone().sub(v.g.position);d.y=0;if(d.length()>0)v.g.position.add(d.normalize().multiplyScalar(1.6));}});
-    }
+    else if(type==='aoe')this._queueBlast(target.g.position.clone(),6.2,sk[2]+u.power*.3,u,hero.color);
+    else{const victims=type==='pull'?this.units.filter(v=>!v.dead&&v.team===u.team*-1&&(v.kind==='hero'||v.kind==='minion')&&v.g.position.distanceTo(target.g.position)<7):[target];victims.forEach(v=>{this._damage(v,sk[2]+u.power*.3,u);if(type==='slow')v.slowTimer=2.4;if(type==='root')v.rootTimer=1.4;if(type==='pull'){const d=u.g.position.clone().sub(v.g.position);d.y=0;if(d.length()>0)v.g.position.add(d.normalize().multiplyScalar(1.6));}});}
+    u.cooldowns[key]=sk[3];
   }
   _minionAi(u,dt){
     if(u.dead)return;u.attackTimer-=dt;
@@ -516,13 +542,19 @@ export class Game {
       if(this.waveTimer>=25){this.waveTimer-=25;this._spawnWave();}
       this._playerTick(dt);
       this.units.slice().forEach(u=>{
-        if(u.kind==='hero'){this._respawn(u,dt);this._progress(u);if(!u.dead&&!u.isPlayer){this._tickBotStatus(u,dt);this._heroAi(u,dt);}}
+        if(u.kind==='hero'){this._respawn(u,dt);if(!u.dead){this._tickBotStatus(u,dt);this._progress(u);if(!u.isPlayer)this._heroAi(u,dt);}}
         else if(u.kind==='minion')this._minionAi(u,dt);
         else if(u.kind==='camp')this._campAi(u,dt);
       });
       this.structures.filter(s=>s.kind==='tower').forEach(s=>this._towerAi(s,dt));
-      this.units.filter(u=>u.kind==='hero'&&!u.dead).forEach(u=>{u.cooldowns&&Object.keys(u.cooldowns).forEach(k=>u.cooldowns[k]=Math.max(0,u.cooldowns[k]-dt));});
-      this.effects=this.effects.filter(e=>{e.life-=dt;e.mesh.scale.setScalar(1+(1-e.life/e.maxLife)*e.scale);e.mesh.material.opacity=Math.max(0,e.life/e.maxLife*.6);if(e.life<=0){this.scene.remove(e.mesh);return false;}return true;});
+      this.effects=this.effects.filter(e=>{
+        e.life-=dt;e.mesh.scale.setScalar(1+(1-e.life/e.maxLife)*e.scale);e.mesh.material.opacity=Math.max(0,e.life/e.maxLife*(e.kind==='blast'?.48:.6));
+        if(e.life<=0){if(e.kind==='blast'){
+          const victims=this.units.filter(v=>!v.dead&&v.team!==e.source.team&&v.team!==0&&(v.kind==='hero'||v.kind==='minion')&&v.g.position.distanceTo(e.position)<e.radius);
+          victims.forEach(v=>{this._damage(v,e.damage,e.source);if(e.status?.root)v.rootTimer=Math.max(v.rootTimer||0,e.status.root);if(e.status?.slow)v.slowTimer=Math.max(v.slowTimer||0,e.status.slow);});
+          this._burst(e.position.clone().add(vec(0,.35)),e.mesh.material.color.getHex(),e.radius*.72);this.onFeed(e.source.name+' landed an area spell.');}
+          this.scene.remove(e.mesh);return false;}return true;
+      });
       if(this.time<=0){const a=this.allyCore?.hp||0,b=this.enemyCore?.hp||0;this._finish(a===b?'draw':a>b?'victory':'defeat');}
       this.hudTimer+=dt;if(this.hudTimer>.15){this.hudTimer=0;this._emitHud();}
     }

@@ -2,9 +2,9 @@
 
 ## Source asset
 
-The game now uses `assets/textures/material-atlas.webp`, a generated 512×512 4×4 hand-painted material atlas. The image is intentionally compact for browser delivery. The 16 cells are split by the SVG material wrappers in this folder; each wrapper selects one cell and feeds the existing Three.js texture loader.
+The game uses `assets/textures/material-atlas.webp`, a 512×512 4×4 painted atlas, plus eight standalone seamless SVG tiles for natural and biome materials. Atlas wrappers select hero-material cells; standalone tiles use their own vector patterns.
 
-The image is a base-colour/diffuse atlas. It is not a full PBR package yet: separate normal, roughness, metalness and emissive maps remain a later production task.
+The atlas is a base-colour/diffuse atlas; standalone SVG tiles add vector colour and surface patterns. It is not a full PBR package yet: separate normal, roughness, metalness and emissive maps remain a later production task.
 
 ## Material slot mapping
 
@@ -17,6 +17,14 @@ The image is a base-colour/diffuse atlas. It is not a full PBR package yet: sepa
 | `metal.svg` | row 4, col 2 | scratched steel and weapon fittings |
 | `cloth.svg` | row 4, col 3 | woven cloth for capes and hoods |
 | `crystal.svg` | row 4, col 4 | blue crystal facets and arcane focus parts |
+| `bark.svg` | standalone vector tile | tree trunks and roots |
+| `moss.svg` | standalone vector tile | forest canopy, floor and allied Core plinth |
+| `wood.svg` | standalone vector tile | bridge decking and wooden props |
+| `water.svg` | standalone vector tile | jungle pools and river accents |
+| `ash.svg` | standalone vector tile | ashen jungle ground |
+| `sand.svg` | standalone vector tile | dry clearing and desert ground |
+| `lava.svg` | standalone vector tile | volcanic ground and Rift Core base |
+| `rune.svg` | standalone vector tile | rune rings and objective markings |
 
 ## Atlas cells reserved for the next environment pass
 
@@ -26,7 +34,7 @@ The image is a base-colour/diffuse atlas. It is not a full PBR package yet: sepa
 
 ## Runtime distribution
 
-`src/game.js` loads seven named material slots from SVG files and sets `THREE.SRGBColorSpace`, `RepeatWrapping`, and anisotropy. The wrappers reference the shared WebP atlas, so each object receives a dedicated UV tile without seven duplicate raster files. Team colour is applied as a separate material tint and is not baked into the shared texture.
+`src/game.js` loads fifteen named material slots from SVG files and sets `THREE.SRGBColorSpace`, `RepeatWrapping`, and anisotropy. The seven hero-material wrappers reference the shared WebP atlas. Eight standalone SVG tiles add bark, moss, wood, water, ash, sand, lava and runes. Team colour is applied as a separate material tint and is not baked into the shared texture.
 
 ## Visual quality gate
 

@@ -149,6 +149,8 @@ window.addEventListener('keydown',e=>{
   if(k==='escape'){if(!$('shop-screen').classList.contains('hidden'))closeModal('shop-screen');else if(!$('score-screen').classList.contains('hidden'))closeModal('score-screen');else if(!$('pause-screen').classList.contains('hidden'))resumeGame();else pauseGame();return;}
   if(k==='tab'){toggleScore(true);return;}
   if(k==='b'){openShop();return;}
+  if(k==='g'){game?.ping('attack');return;}
+  if(k==='h'){game?.ping('defend');return;}
   if(k===' '){game?.dodge();return;}
   if(['w','a','s','d'].includes(k)&&!(k==='w'&&e.shiftKey))game&& (game.keys[k]=true);
   if(k==='q')game?.cast(0);if(k==='e')game?.cast(2);if(k==='r')game?.cast(3);

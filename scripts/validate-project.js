@@ -16,13 +16,13 @@ if (missingIds.length) {
   process.exit(1);
 }
 
-const textureNames = ['terrain','armor','cloth','leather','metal','crystal','stone'];
+const textureNames = ['terrain','armor','cloth','leather','metal','crystal','stone','bark','moss','wood','water','ash','sand','lava','rune'];
 const missingTextures = textureNames.filter(name => !existsSync(resolve(root, 'assets/textures', name + '.svg')));
 if (missingTextures.length) {
   console.error('Missing texture files:', missingTextures.join(', '));
   process.exit(1);
 }
-if (!game.includes("['terrain','armor','cloth','leather','metal','crystal','stone']")) {
+if (!game.includes("['terrain','armor','cloth','leather','metal','crystal','stone','bark','moss','wood','water','ash','sand','lava','rune']")) {
   console.error('Texture registry does not match the expected texture set.');
   process.exit(1);
 }

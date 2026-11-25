@@ -23,6 +23,8 @@ Then open http://localhost:8080.
 - Space: dodge
 - B: armory
 - Tab: scoreboard
+- G: attack ping for allied bots
+- H: defend ping for allied bots
 - Esc: pause
 
 Touch devices receive a virtual joystick, attack, dodge and skill buttons.
