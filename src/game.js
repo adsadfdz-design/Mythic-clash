@@ -372,7 +372,7 @@ export class Game {
     const hero=HEROES.find(h=>h.id===p.heroId),skill=hero.skills[slot],key=['q','w','e','r'][slot];
     if((p.cooldowns[key]||0)>0)return;
     p.cooldowns[key]=skill[3]*(1-p.haste);
-    const type=skill[1],power=skill[2]+p.power*.35,aim=this.aim.clone();
+    const type=skill[1],power=(skill[2]+p.power*.35)*(p.campBuffTimer>0?1.12:1),aim=this.aim.clone();
     const radius=type==='aoe'?7.5:(type==='root'||type==='slow'||type==='pull'?8.5:12);
     const targets=this._hostiles(p.team).filter(u=>u.kind!=='core'&&u.kind!=='tower'&&u.hp>0&&u.g.position.distanceTo(aim)<radius+1).sort((a,b)=>a.g.position.distanceTo(aim)-b.g.position.distanceTo(aim));
     const target=targets[0]||this._nearestEnemy(p,12);const color=hero.color;
@@ -442,11 +442,13 @@ export class Game {
     if(u.attackTimer<=0&&u.g.position.distanceTo(target.g.position)<=u.range+1){
       u.attackTimer=u.attackRate*(1-(u.haste||0));const campMultiplier=u.campBuffTimer>0?1.18:1;const dmg=(u.damage+(u.buffTimer>0?u.damage*.4:0))*campMultiplier;
       this._damage(target,dmg,u);this._beam(u.g.position,target.g.position,u.team===1?0x83c7ff:0xff9aa5);
+      if(u.onHitSlow&&!target.dead)target.slowTimer=Math.max(target.slowTimer||0,1.25);
       if(u.lifesteal&&u.kind==='hero')this._heal(u,dmg*u.lifesteal);
     }
   }
   _tickBotStatus(u,dt){
     if(u.shieldTimer>0){u.shieldTimer-=dt;if(u.shieldTimer<=0)u.shield=0;}
+    if(!u.isPlayer)this._botBuy(u,dt);
     for(const key of Object.keys(u.cooldowns||{}))u.cooldowns[key]=Math.max(0,u.cooldowns[key]-dt);
     u.slowTimer=Math.max(0,(u.slowTimer||0)-dt);u.rootTimer=Math.max(0,(u.rootTimer||0)-dt);u.stunTimer=Math.max(0,(u.stunTimer||0)-dt);
     u.buffTimer=Math.max(0,(u.buffTimer||0)-dt);u.campBuffTimer=Math.max(0,(u.campBuffTimer||0)-dt);
@@ -479,7 +481,7 @@ export class Game {
     if(type==='shield')this._shield(u,340,4);else if(type==='heal')this._heal(this._nearestAlly(u,12),300);
     else if(type==='dash'||type==='blink'){const delta=target.g.position.clone().sub(u.g.position);if(delta.lengthSq()>0)u.g.position.addScaledVector(delta.normalize(),type==='dash'?4.5:6.5);}
     else if(type==='buff'){u.buffTimer=5;u.damage=u.baseDamage*1.4;}
-    else if(type==='aoe')this._queueBlast(target.g.position.clone(),6.2,sk[2]+u.power*.3,u,hero.color);
+    else if(type==='aoe')this._queueBlast(target.g.position.clone(),6.2,(sk[2]+u.power*.3)*(u.campBuffTimer>0?1.12:1),u,hero.color);
     else{const victims=type==='pull'?this.units.filter(v=>!v.dead&&v.team===u.team*-1&&(v.kind==='hero'||v.kind==='minion')&&v.g.position.distanceTo(target.g.position)<7):[target];victims.forEach(v=>{this._damage(v,sk[2]+u.power*.3,u);if(type==='slow')v.slowTimer=2.4;if(type==='root')v.rootTimer=1.4;if(type==='pull'){const d=u.g.position.clone().sub(v.g.position);d.y=0;if(d.length()>0)v.g.position.add(d.normalize().multiplyScalar(1.6));}});}
     u.cooldowns[key]=sk[3];
   }
@@ -514,14 +516,34 @@ export class Game {
     if(this.ended)return;this.ended=true;this.running=false;
     this.onFinish({result,time:this.time,stats:{...this.stats},player:this.player?{name:this.player.name,level:this.player.level,inventory:[...this.player.inventory],gold:this.player.gold}:null,cores:{alliance:Math.max(0,this.allyCore?.hp||0),enemy:Math.max(0,this.enemyCore?.hp||0)}});
   }
-  buyItem(id){
-    const p=this.player,item=ITEMS.find(i=>i.id===id);if(!p||!item||p.inventory.length>=6||p.gold<item.cost)return false;
-    p.gold-=item.cost;p.inventory.push(id);Object.entries(item.stats).forEach(([k,v])=>{
-      if(k==='hp'){p.maxHp+=v;p.hp+=v;}else if(k==='damage'){p.damage+=v;p.baseDamage+=v;}else if(k==='power')p.power+=v;else if(k==='speed')p.speed+=v;
-      else if(k==='armor')p.armor=(p.armor||0)+v;else if(k==='regen')p.regen=(p.regen||2)+v;else if(k==='lifesteal')p.lifesteal=(p.lifesteal||0)+v;
-      else if(k==='haste')p.haste=Math.min(.35,(p.haste||0)+v);
+  _applyItemTo(unit,item){
+    if(!unit.inventory)unit.inventory=[];
+    unit.gold-=item.cost;unit.inventory.push(item.id);
+    Object.entries(item.stats).forEach(([k,v])=>{
+      if(k==='hp'){unit.maxHp+=v;unit.hp+=v;}
+      else if(k==='damage'){unit.damage+=v;unit.baseDamage+=v;}
+      else if(k==='power')unit.power+=v;
+      else if(k==='speed')unit.speed+=v;
+      else if(k==='armor')unit.armor=(unit.armor||0)+v;
+      else if(k==='regen')unit.regen=(unit.regen||2)+v;
+      else if(k==='lifesteal')unit.lifesteal=(unit.lifesteal||0)+v;
+      else if(k==='haste')unit.haste=Math.min(.35,(unit.haste||0)+v);
+      else if(k==='slow')unit.onHitSlow=true;
     });
-    this.stats.goldEarned+=item.cost;this.onFeed('Purchased '+item.name+'.');this._emitHud();return true;
+  }
+  _botBuy(unit,dt){
+    unit.shopTimer=Math.max(0,(unit.shopTimer||0)-dt);
+    if(unit.shopTimer>0||unit.inventory.length>=6)return;
+    const builds={Tank:['guardian','ironroot','phoenix','vital','titans'],Mage:['arcane','oracle','storm','sunfire','wind'],Assassin:['titans','bloodfang','wind','sunfire','guardian'],Ranged:['titans','wind','bloodfang','sunfire','arcane'],Support:['vital','phoenix','oracle','guardian','wind'],Bruiser:['titans','phoenix','guardian','bloodfang','wind']};
+    const order=builds[unit.role]||builds.Bruiser;
+    const item=order.map(id=>ITEMS.find(i=>i.id===id)).find(i=>i&&!unit.inventory.includes(i.id)&&i.cost<=unit.gold);
+    if(item)this._applyItemTo(unit,item);
+    unit.shopTimer=item?22:7;
+  }
+  buyItem(id){
+    const p=this.player,item=ITEMS.find(i=>i.id===id);
+    if(!p||!item||p.inventory.length>=6||p.gold<item.cost)return false;
+    this._applyItemTo(p,item);this.stats.goldEarned+=item.cost;this.onFeed('Purchased '+item.name+'.');this._emitHud();return true;
   }
   scoreboard(){
     return this.units.filter(u=>u.kind==='hero').map(u=>({name:u.name,role:u.role,team:u.team,level:u.level||1,kills:u.stats?.kills||0,deaths:u.stats?.deaths||0,assists:u.stats?.assists||0,hp:u.hp,maxHp:u.maxHp,dead:u.dead})).sort((a,b)=>a.team-b.team);
