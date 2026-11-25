@@ -27,8 +27,10 @@ if (!game.includes("['terrain','armor','cloth','leather','metal','crystal','ston
   process.exit(1);
 }
 
-const heroCount = [...game.matchAll(/\{id:'[a-z-]+',name:'/g)].length;
-const itemCount = [...game.matchAll(/\{id:'[a-z-]+',name:'[^']+',cost:/g)].length;
+const heroSection = game.split('export const HEROES = [')[1]?.split('];\\n\\nexport const ITEMS')[0] || '';
+const itemSection = game.split('export const ITEMS = [')[1]?.split('];')[0] || '';
+const heroCount = [...heroSection.matchAll(/\\{id:'[a-z-]+',name:'/g)].length;
+const itemCount = [...itemSection.matchAll(/\\{id:'[a-z-]+',name:'[^']+',cost:/g)].length;
 if (heroCount !== 23) {
   console.error('Expected 23 hero definitions, found', heroCount);
   process.exit(1);
