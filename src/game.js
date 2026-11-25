@@ -64,7 +64,7 @@ export class Game {
     sun.shadow.mapSize.set(1024,1024); sun.shadow.camera.left=-55; sun.shadow.camera.right=55; sun.shadow.camera.top=45; sun.shadow.camera.bottom=-45;
     this.scene.add(sun);
     this.raycaster=new THREE.Raycaster(); this.pointer=new THREE.Vector2(); this.groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
-    this.units=[]; this.structures=[]; this.effects=[]; this.trees=[];
+    this.units=[]; this.structures=[]; this.effects=[]; this.trees=[]; this.materials=[]; this.textures={}; this._loadTextures();
     this.keys={}; this.moveVector=vec(); this.touchVector=vec(); this.moveOrder=null; this.aim=vec(0,0);
     this.player=null; this.selectedTarget=null; this.time=720; this.running=false; this.paused=false; this.ended=false;
     this.goldTimer=0; this.waveTimer=0; this.hudTimer=0; this.stats={kills:0,deaths:0,assists:0,towers:0,goldEarned:0};
@@ -72,10 +72,26 @@ export class Game {
     addEventListener('resize',()=>this._resize());
   }
 
-  _mat(color,roughness=.82,metalness=0){return new THREE.MeshStandardMaterial({color,roughness,metalness});}
+  _loadTextures(){
+    const loader=new THREE.TextureLoader();
+    ['terrain','armor','cloth','leather','metal','crystal','stone'].forEach(name=>{
+      const texture=loader.load(new URL('../assets/textures/'+name+'.svg',import.meta.url).href,()=>{
+        this.materials.filter(m=>m.userData.textureName===name).forEach(m=>{m.map=texture;m.needsUpdate=true;});
+      });
+      texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+      texture.colorSpace=THREE.SRGBColorSpace;
+      texture.anisotropy=Math.min(4,this.renderer.capabilities.getMaxAnisotropy());
+      texture.repeat.set(2,2); this.textures[name]=texture;
+    });
+  }
+  _mat(color,roughness=.82,metalness=0,textureName=''){
+    const material=new THREE.MeshStandardMaterial({color,roughness,metalness,map:textureName?this.textures[textureName]||null:null});
+    if(textureName)material.userData.textureName=textureName;
+    this.materials.push(material);return material;
+  }
   _box(x,z,w,d,h,color,group=this.scene){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),this._mat(color));m.position.set(x,h/2,z);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;}
   _buildArena(){
-    const ground=new THREE.Mesh(new THREE.PlaneGeometry(104,82),this._mat(0x344e43)); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; this.scene.add(ground);
+    const ground=new THREE.Mesh(new THREE.PlaneGeometry(104,82),this._mat(0x71846a,.96,0,'terrain')); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; this.scene.add(ground);
     LANES.forEach((z,i)=>{this._box(0,z,96,5.8,.18,i===1?0x8b8876:0x777d70); for(let x=-45;x<46;x+=5.2)this._box(x,z,.16,.23,.025,0xc1b99a);});
     this._box(0,0,4.2,78,.12,0x256b76);
     LANES.forEach(z=>{this._box(0,z,6.3,6.2,.26,0xa18a69); for(let k=-2;k<=2;k++)this._box(k,z,.12,5.8,.29,0xd0b78f);});
@@ -96,20 +112,107 @@ export class Game {
 
   _makeHeroMesh(hero,team){
     const g=new THREE.Group(); const teamColor=team===1?0x4e9be9:0xe56872;
-    const bodyMat=this._mat(teamColor,.58,.08), heroMat=this._mat(hero.color,.7,.04), skin=this._mat(0xe4c6a3);
-    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.63,.8,5,8),bodyMat);body.position.y=1.05;body.castShadow=true;g.add(body);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.42,12,10),skin);head.position.y=2.05;head.castShadow=true;g.add(head);
-    const hood=new THREE.Mesh(new THREE.SphereGeometry(.49,10,8,0,Math.PI*2,0,Math.PI*.55),heroMat);hood.position.y=2.14;g.add(hood);
-    const shoulders=new THREE.Mesh(new THREE.BoxGeometry(1.35,.34,.82),heroMat);shoulders.position.y=1.55;shoulders.castShadow=true;g.add(shoulders);
-    if(hero.role==='Tank'){const shield=new THREE.Mesh(new THREE.BoxGeometry(.25,1.3,.85),this._mat(0xc2b991,.55,.28));shield.position.set(-.78,1.12,.12);shield.rotation.z=-.16;g.add(shield);}
-    else if(hero.role==='Mage'){const staff=new THREE.Mesh(new THREE.CylinderGeometry(.055,.075,2.15,7),this._mat(0x765c43));staff.position.set(.78,1.05,0);g.add(staff);const orb=new THREE.Mesh(new THREE.OctahedronGeometry(.28),heroMat);orb.position.set(.78,2.18,0);g.add(orb);}
-    else if(hero.role==='Assassin'){for(const side of [-1,1]){const blade=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,1),this._mat(0xd9e3e6,.25,.75));blade.position.set(side*.72,.9,.1);blade.rotation.x=.3;g.add(blade);}}
-    else if(hero.role==='Ranged'){const bow=new THREE.Mesh(new THREE.TorusGeometry(.43,.055,6,16,Math.PI),this._mat(0xd8c79b));bow.position.set(.75,1.35,0);bow.rotation.z=Math.PI/2;g.add(bow);}
-    else {const halo=new THREE.Mesh(new THREE.TorusGeometry(.6,.075,7,22),heroMat);halo.position.y=2.6;halo.rotation.x=Math.PI/2;g.add(halo);}
-    const ring=new THREE.Mesh(new THREE.RingGeometry(.82,1.02,28),this._mat(team===1?0x7bbafa:0xff8b8e));ring.rotation.x=-Math.PI/2;ring.position.y=.05;g.add(ring);
+    const metal=this._mat(0xd2c7a8,.38,.42,'metal');
+    const hide=this._mat(hero.color,.64,.04,'leather');
+    const cloth=this._mat(hero.color,.92,0,'cloth');
+    const crystal=this._mat(hero.color,.22,.35,'crystal');
+    const skin=this._mat(0xe4c6a3);
+    const teamMat=this._mat(teamColor,.55,.1,'armor');
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.68,.92,5,9),teamMat);body.position.y=1.08;body.castShadow=true;g.add(body);
+    const chest=new THREE.Mesh(new THREE.BoxGeometry(1.12,.82,.88),hide);chest.position.y=1.42;chest.castShadow=true;g.add(chest);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.42,14,12),skin);head.position.y=2.18;head.castShadow=true;g.add(head);
+    const hood=new THREE.Mesh(new THREE.SphereGeometry(.52,12,10,0,Math.PI*2,0,Math.PI*.56),cloth);hood.position.y=2.25;g.add(hood);
+    const shoulders=new THREE.Mesh(new THREE.BoxGeometry(1.55,.42,.92),this._mat(hero.color,.55,.15,'armor'));shoulders.position.y=1.72;shoulders.castShadow=true;g.add(shoulders);
+    const belt=new THREE.Mesh(new THREE.TorusGeometry(.5,.09,6,18),metal);belt.position.y=.98;belt.rotation.x=Math.PI/2;g.add(belt);
+    const cape=new THREE.Mesh(new THREE.ConeGeometry(.78,1.5,5,1,true),cloth);cape.position.set(0,1.35,-.55);cape.rotation.x=-.28;g.add(cape);
+    const add=(geometry,material,x,y,z,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{
+      const m=new THREE.Mesh(geometry,material);m.position.set(x,y,z);m.rotation.set(rx,ry,rz);m.scale.set(sx,sy,sz);m.castShadow=true;g.add(m);return m;
+    };
+    const blade=(x,z,angle=0)=>{
+      add(new THREE.BoxGeometry(.13,.16,1.55),metal,x,1.05,z,.2,0,angle);
+      add(new THREE.ConeGeometry(.12,.38,5),crystal,x,1.05,z+.92,.2,0,angle+Math.PI);
+    };
+    const spike=(x,y,z,size=.45,rotation=0)=>add(new THREE.ConeGeometry(size,.95,5),hide,x,y,z,0,0,rotation);
+    // Every hero receives a bespoke silhouette hook, not just a recoloured shared rig.
+    switch(hero.id){
+      case 'bramble':
+        for(const s of [-1,1]){spike(s*.56,2.65,-.12,.55,s*.55);add(new THREE.CylinderGeometry(.075,.16,1.1,6),hide,s*.83,1.75,-.14,0,0,s*.55);}
+        add(new THREE.TorusGeometry(.76,.08,6,22),hide,0,2.2,0,Math.PI/2);
+        for(let i=0;i<3;i++)spike(-.48+i*.48,.9,.58,.2);
+        break;
+      case 'nyxara':
+        add(new THREE.TorusGeometry(.92,.11,8,32),crystal,0,2.82,-.1,.3,0,0);
+        for(let i=0;i<4;i++){const a=i*Math.PI/2;add(new THREE.OctahedronGeometry(.3),crystal,Math.cos(a)*1.05,2.85,Math.sin(a)*.75,0,a,0);}
+        add(new THREE.CylinderGeometry(.045,.075,2.4,7),metal,.82,1.2,0,0,0,-.2);
+        break;
+      case 'korr':
+        blade(-.82,.2,-.35);blade(.82,.2,.35);
+        for(const s of [-1,1])spike(s*.5,2.75,-.15,.35,s*.5);
+        add(new THREE.ConeGeometry(.6,1.1,5),hide,0,2.6,-.5,Math.PI,0,0);
+        break;
+      case 'aurelion':
+        add(new THREE.TorusGeometry(.72,.12,8,24),crystal,0,2.95,0,0,0,0);
+        for(let i=0;i<8;i++){const a=i*Math.PI/4;spike(Math.cos(a)*.9,2.95+Math.sin(a)*.28,0,.23,a);}
+        for(const s of [-1,1])add(new THREE.ConeGeometry(.38,1.5,5),metal,s*.9,1.95,-.35,0,0,s*.45);
+        break;
+      case 'vexa':
+        add(new THREE.TorusGeometry(.72,.1,8,24,Math.PI*1.45),crystal,0,2.75,0,0,0,-.7);
+        for(const s of [-1,1])add(new THREE.OctahedronGeometry(.38),crystal,s*.92,1.8,.12,.3,0,.2);
+        add(new THREE.CylinderGeometry(.05,.08,2.5,7),metal,.83,1.25,0,0,0,-.18);
+        break;
+      case 'thorne':
+        for(const s of [-1,1]){spike(s*.8,2.05,-.15,.58,s*.6);spike(s*.55,2.6,-.2,.38,s*.5);}
+        add(new THREE.TorusGeometry(.88,.12,7,24),hide,0,1.55,0,Math.PI/2);
+        break;
+      case 'rurik':
+        add(new THREE.BoxGeometry(.65,.65,1.8),metal,1,1.4,0,0,0,-.25);
+        add(new THREE.BoxGeometry(.9,.85,.8),hide,1.35,1.4,0);
+        add(new THREE.CylinderGeometry(.18,.28,1.1,7),metal,1,2.05,0,0,0,-.25);
+        add(new THREE.TorusGeometry(.85,.12,6,18),metal,0,2.55,0,Math.PI/2);
+        break;
+      case 'sable': case 'kael': case 'selene':
+        add(new THREE.TorusGeometry(.78,.075,7,24,Math.PI*1.3),metal,.95,1.5,0,0,0,Math.PI/2);
+        add(new THREE.CylinderGeometry(.045,.07,1.8,6),hide,.95,1.5,0,0,0,.5);
+        add(new THREE.ConeGeometry(.13,.38,5),crystal,.95,2.55,0);
+        add(new THREE.BoxGeometry(1.15,.09,.12),metal,.95,1.5,0);
+        break;
+      case 'ilyra': case 'mirelle': case 'zhara':
+        add(new THREE.TorusGeometry(.78,.09,7,24),crystal,0,2.78,0,.35,0,.25);
+        for(const s of [-1,1])add(new THREE.OctahedronGeometry(.3),crystal,s*.8,2.05,.08,0,0,.4);
+        add(new THREE.CylinderGeometry(.045,.08,2.35,7),metal,.82,1.18,0,0,0,-.25);
+        break;
+      case 'morrow':
+        add(new THREE.ConeGeometry(.72,1.7,5),cloth,0,2.1,-.52,Math.PI,0,0);
+        add(new THREE.TorusGeometry(.62,.08,7,22),crystal,0,2.6,0,.5,0,0);
+        add(new THREE.CylinderGeometry(.06,.09,2.7,6),hide,.86,1.2,0,0,0,-.2);
+        break;
+      case 'fen': case 'varka':
+        blade(-.82,.15,-.42);blade(.82,.15,.42);
+        for(const s of [-1,1])add(new THREE.ConeGeometry(.22,.9,5),hide,s*.48,2.55,-.12,0,0,s*.5);
+        add(new THREE.ConeGeometry(.65,1.05,5),cloth,0,2.4,-.58,Math.PI,0,0);
+        break;
+      case 'orla': case 'amara': case 'pippa':
+        add(new THREE.TorusGeometry(.85,.09,7,24),crystal,0,2.78,0,.5,0,0);
+        for(let i=0;i<5;i++){const a=i*Math.PI*2/5;add(new THREE.SphereGeometry(.2,8,6),crystal,Math.cos(a)*.9,2.8,Math.sin(a)*.55);}
+        add(new THREE.CylinderGeometry(.055,.08,2.2,7),hide,.85,1.15,0,0,0,-.25);
+        break;
+      case 'draz':
+        for(const s of [-1,1]){spike(s*.9,1.85,-.1,.62,s*.5);spike(s*.55,2.6,-.2,.42,s*.45);}
+        add(new THREE.BoxGeometry(1.9,.32,.75),metal,0,2.03,-.15);
+        blade(1.1,.1,-.2);
+        break;
+      case 'eidon': case 'grom': case 'oren':
+        add(new THREE.BoxGeometry(.22,1.55,1.15),metal,-.95,1.2,.12,0,0,-.15);
+        add(new THREE.TorusGeometry(.62,.13,7,20),hide,-.95,1.3,.12,Math.PI/2);
+        if(hero.id==='grom'){spike(-.55,2.65,-.1,.58,-.4);spike(.55,2.65,-.1,.58,.4);}
+        if(hero.id==='oren')add(new THREE.BoxGeometry(.18,1.8,.18),hide,.88,1.65,0,0,0,.3);
+        break;
+    }
+    // Team-colour shoulder marks stay readable even under the hero's own palette.
+    add(new THREE.BoxGeometry(.28,.23,.12),this._mat(teamColor,.4,.15),0,1.76,.53);
+    const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.12,32),this._mat(team===1?0x7bbafa:0xff8b8e));ring.rotation.x=-Math.PI/2;ring.position.y=.055;g.add(ring);
     return g;
   }
-
   _makeMinionMesh(team){
     const g=new THREE.Group();const color=team===1?0x5ba4e7:0xe16b75;
     const body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.42,4,6),this._mat(color));body.position.y=.63;g.add(body);
@@ -188,11 +291,11 @@ export class Game {
   issueMove(){if(!this.player||this.player.dead)return;this.moveOrder=vec(clamp(this.aim.x,-47,47),clamp(this.aim.z,-34,34));this.selectedTarget=null;}
   primaryAttack(){
     if(!this.player||this.player.dead)return;
-    const nearby=this._hostiles(this.player.team).filter(u=>u.kind==='hero'||u.kind==='minion').sort((a,b)=>a.g.position.distanceTo(this.aim)-b.g.position.distanceTo(this.aim));
-    const candidate=nearby[0]&&nearby[0].g.position.distanceTo(this.aim)<4.2?nearby[0]:this._nearestEnemy(this.player,13);
+    const nearby=this._hostiles(this.player.team).filter(u=>u.kind==='hero'||u.kind==='minion'||u.kind==='tower'||u.kind==='core').sort((a,b)=>a.g.position.distanceTo(this.aim)-b.g.position.distanceTo(this.aim));
+    const candidate=nearby[0]&&nearby[0].g.position.distanceTo(this.aim)<5?nearby[0]:this._nearestEnemy(this.player,13);
     this.selectedTarget=candidate||null;if(!candidate)this.issueMove();
   }
-  _hostiles(team){return [...this.units,...this.structures].filter(u=>!u.dead&&u.team!==0&&u.team!==team);}
+  _hostiles(team){return [...this.units,...this.structures].filter(u=>!u.dead&&(u.team===0?u.kind==='camp':u.team!==team));}
   _nearestEnemy(from,range=12,includeMinions=true){
     return this._hostiles(from.team).filter(u=>u.kind!=='core'&&u.kind!=='tower'&&(includeMinions||u.kind!=='minion')&&u.hp>0&&u.g.position.distanceTo(from.g.position)<range)
       .sort((a,b)=>a.g.position.distanceTo(from.g.position)-b.g.position.distanceTo(from.g.position))[0]||null;
@@ -205,7 +308,7 @@ export class Game {
   _laneTarget(team,lane){const opposing=team===1?2:1;return this._towerFor(opposing,lane)||this._coreFor(opposing);}
 
   _damage(target,amount,source){
-    if(!target||target.dead||amount<=0)return;
+    if(!target||target.dead||amount<=0||target.invulnTimer>0)return;
     if(target.shield>0){const absorbed=Math.min(target.shield,amount);target.shield-=absorbed;amount-=absorbed;}
     if(amount<=0)return;
     const armor=target.armor||0;const actual=Math.max(1,amount*(100/(100+armor)));target.hp-=actual;
@@ -286,13 +389,23 @@ export class Game {
     this.onFeed(p.name+' used '+skill[0]+'.');this._emitHud();
   }
 
+  dodge(){
+    const p=this.player;if(!p||p.dead||this.paused||this.ended||(p.dodgeCooldown||0)>0)return false;
+    let dir=this.moveVector.clone().add(this.touchVector);
+    if(dir.lengthSq()<.01)dir=this.aim.clone().sub(p.g.position);
+    if(dir.lengthSq()<.01)dir.set(p.team===1?1:-1,0,0);
+    dir.normalize();p.g.position.addScaledVector(dir,5.2);
+    p.g.position.x=clamp(p.g.position.x,-47,47);p.g.position.z=clamp(p.g.position.z,-34,34);
+    p.invulnTimer=.36;p.dodgeCooldown=2.5;this._burst(p.g.position.clone().add(vec(0,1)),0x9edcff,1.3);return true;
+  }
+  setPaused(value){this.paused=!!value;this._emitHud();}
   _playerTick(dt){
     const p=this.player;if(!p||p.dead)return;
     Object.keys(p.cooldowns).forEach(k=>p.cooldowns[k]=Math.max(0,p.cooldowns[k]-dt));
     if(p.shieldTimer>0){p.shieldTimer-=dt;if(p.shieldTimer<=0)p.shield=0;}
     if(p.slowTimer>0)p.slowTimer-=dt;if(p.rootTimer>0)p.rootTimer-=dt;
     if(p.buffTimer>0){p.buffTimer-=dt;if(p.buffTimer<=0)p.damage=p.baseDamage;}
-    p.hp=Math.min(p.maxHp,p.hp+(p.regen||2)*dt);
+    p.hp=Math.min(p.maxHp,p.hp+(p.regen||2)*dt);p.dodgeCooldown=Math.max(0,(p.dodgeCooldown||0)-dt);p.invulnTimer=Math.max(0,(p.invulnTimer||0)-dt);
     const input=this.moveVector.clone().add(this.touchVector);if(input.lengthSq()>1)input.normalize();
     if(input.lengthSq()>.01&&!p.rootTimer){p.g.position.addScaledVector(input,p.speed*dt);this.moveOrder=null;}
     else if(this.selectedTarget&&!this.selectedTarget.dead){
@@ -321,7 +434,7 @@ export class Game {
     if(enemy){
       const d=enemy.g.position.distanceTo(u.g.position);if(d>u.range*.9)this._moveTowards(u,enemy.g.position,dt);else this._tryAttack(u,enemy,dt);
       if(Math.random()<dt*.12){const skillIndex=Math.floor(Math.random()*3);this._castBot(u,skillIndex,enemy);}
-    }else{const target=this._laneTarget(u.team,u.lane);if(target)this._moveTowards(u,target.g.position,dt);}
+    }else{const target=this._laneTarget(u.team,u.lane);if(target){if(u.g.position.distanceTo(target.g.position)<u.range+1)this._tryAttack(u,target,dt);else this._moveTowards(u,target.g.position,dt);}}
   }
   _castBot(u,index,target){
     const hero=HEROES.find(h=>h.id===u.heroId);if(!hero)return;
