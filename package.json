@@ -4,6 +4,6 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "check": "node --check src/main.js && node --check src/game.js"
+    "check": "node --check src/main.js && node --check src/game.js && node scripts/validate-project.js"
   }
 }
