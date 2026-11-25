@@ -428,6 +428,14 @@ export class Game {
       if(u.lifesteal&&u.kind==='hero')this._heal(u,dmg*u.lifesteal);
     }
   }
+  _tickBotStatus(u,dt){
+    if(u.shieldTimer>0){u.shieldTimer-=dt;if(u.shieldTimer<=0)u.shield=0;}
+    if(u.slowTimer>0)u.slowTimer-=dt;
+    if(u.rootTimer>0)u.rootTimer-=dt;
+    if(u.buffTimer>0){u.buffTimer-=dt;if(u.buffTimer<=0)u.damage=u.baseDamage;}
+    if(u.invulnTimer>0)u.invulnTimer-=dt;
+    u.hp=Math.min(u.maxHp,u.hp+(u.regen||2)*dt);
+  }
   _heroAi(u,dt){
     if(u.dead||u.isPlayer)return;
     const enemy=this._nearestEnemy(u,9,true);
@@ -508,7 +516,7 @@ export class Game {
       if(this.waveTimer>=25){this.waveTimer-=25;this._spawnWave();}
       this._playerTick(dt);
       this.units.slice().forEach(u=>{
-        if(u.kind==='hero'){this._respawn(u,dt);this._progress(u);if(!u.dead&&!u.isPlayer)this._heroAi(u,dt);}
+        if(u.kind==='hero'){this._respawn(u,dt);this._progress(u);if(!u.dead&&!u.isPlayer){this._tickBotStatus(u,dt);this._heroAi(u,dt);}}
         else if(u.kind==='minion')this._minionAi(u,dt);
         else if(u.kind==='camp')this._campAi(u,dt);
       });
