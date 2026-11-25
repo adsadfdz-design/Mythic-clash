@@ -4,7 +4,7 @@ Original 3D top-down lane arena, solo 3v3 against bots. The project is browser-f
 
 ## Run locally
 
-Serve this folder using any static HTTP server. Do not open index.html as a file:// URL, because browser ES modules and texture loading need an HTTP origin.
+Serve this folder using any static HTTP server. Do not open index.html as a file:// URL, because browser ES modules and texture loading need an HTTP origin. Run npm run check to validate JavaScript syntax, UI element references, the texture set, the 23-hero roster and item definitions.
 
 ```bash
 python -m http.server 8080
