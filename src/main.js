@@ -150,9 +150,9 @@ window.addEventListener('keydown',e=>{
   if(k==='tab'){toggleScore(true);return;}
   if(k==='b'){openShop();return;}
   if(k===' '){game?.dodge();return;}
-  if(['w','a','s','d'].includes(k))game&& (game.keys[k]=true);
+  if(['w','a','s','d'].includes(k)&&!(k==='w'&&e.shiftKey))game&& (game.keys[k]=true);
   if(k==='q')game?.cast(0);if(k==='e')game?.cast(2);if(k==='r')game?.cast(3);
-  if(k==='w'&&game?.keys.w){} // W is movement; ability W is cast by the on-screen button or Shift+W.
+  // W is movement; Shift+W casts the second skill.
   if(k==='shift'&&game)game.cast(1);
 });
 window.addEventListener('keyup',e=>{
