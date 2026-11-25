@@ -372,9 +372,11 @@ export class Game {
     const hero=HEROES.find(h=>h.id===p.heroId),skill=hero.skills[slot],key=['q','w','e','r'][slot];
     if((p.cooldowns[key]||0)>0)return;
     p.cooldowns[key]=skill[3]*(1-p.haste);
-    const type=skill[1],power=(skill[2]+p.power*.35)*(p.campBuffTimer>0?1.12:1),aim=this.aim.clone();
+    const type=skill[1],power=(skill[2]+p.power*.35)*(p.campBuffTimer>0?1.12:1);
+    const castRange=type==='dash'?7:type==='blink'?10:Math.max(10,p.range+2);
+    let aim=this.aim.clone();const castDelta=aim.clone().sub(p.g.position);if(castDelta.length()>castRange){castDelta.setLength(castRange);aim=p.g.position.clone().add(castDelta);}
     const radius=type==='aoe'?7.5:(type==='root'||type==='slow'||type==='pull'?8.5:12);
-    const targets=this._hostiles(p.team).filter(u=>u.kind!=='core'&&u.kind!=='tower'&&u.hp>0&&u.g.position.distanceTo(aim)<radius+1).sort((a,b)=>a.g.position.distanceTo(aim)-b.g.position.distanceTo(aim));
+    const targets=this._hostiles(p.team).filter(u=>u.kind!=='core'&&u.kind!=='tower'&&u.hp>0&&u.g.position.distanceTo(aim)<radius+1&&u.g.position.distanceTo(p.g.position)<castRange+radius).sort((a,b)=>a.g.position.distanceTo(aim)-b.g.position.distanceTo(aim));
     const target=targets[0]||this._nearestEnemy(p,12);const color=hero.color;
     if(type==='dash'||type==='blink'){
       const dest=aim.clone().sub(p.g.position);if(dest.length()<.1)dest.set(p.team===1?1:-1,0,0);dest.normalize().multiplyScalar(type==='dash'?5.8:8.2);

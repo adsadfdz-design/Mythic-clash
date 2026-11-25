@@ -39,4 +39,10 @@ if (itemCount < 12) {
   console.error('Expected at least 12 item definitions, found', itemCount);
   process.exit(1);
 }
+const requiredGameplay = ['_queueBlast(', '_botBuy(', '_nearestCamp(', "ping(type='attack')", 'castRange='];
+const missingGameplay = requiredGameplay.filter(token => !game.includes(token));
+if (missingGameplay.length) {
+  console.error('Missing gameplay systems:', missingGameplay.join(', '));
+  process.exit(1);
+}
 console.log('Project validation passed:', referencedIds.size, 'UI ids,', textureNames.length, 'textures,', heroCount, 'heroes,', itemCount, 'items.');
