@@ -6,9 +6,9 @@ const html = readFileSync(resolve(root, 'index.html'), 'utf8');
 const main = readFileSync(resolve(root, 'src/main.js'), 'utf8');
 const game = readFileSync(resolve(root, 'src/game.js'), 'utf8');
 
-const ids = new Set([...html.matchAll(/\\bid="([^"]+)"/g)].map(m => m[1]));
+const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
 const generatedCanvasId = 'game-canvas';
-const referencedIds = new Set([...main.matchAll(/\\$\\('([^']+)'\\)/g)].map(m => m[1]));
+const referencedIds = new Set([...main.matchAll(/\$\('([^']+)'\)/g)].map(m => m[1]));
 referencedIds.delete(generatedCanvasId);
 const missingIds = [...referencedIds].filter(id => !ids.has(id));
 if (missingIds.length) {
@@ -16,15 +16,19 @@ if (missingIds.length) {
   process.exit(1);
 }
 
-const textureNames = [...new Set([...game.matchAll(/assets\\/textures\\/([a-z-]+)\\.svg/g)].map(m => m[1]))];
+const textureNames = ['terrain','armor','cloth','leather','metal','crystal','stone'];
 const missingTextures = textureNames.filter(name => !existsSync(resolve(root, 'assets/textures', name + '.svg')));
 if (missingTextures.length) {
   console.error('Missing texture files:', missingTextures.join(', '));
   process.exit(1);
 }
+if (!game.includes("['terrain','armor','cloth','leather','metal','crystal','stone']")) {
+  console.error('Texture registry does not match the expected texture set.');
+  process.exit(1);
+}
 
-const heroCount = [...game.matchAll(/\\{id:'[a-z-]+',name:'/g)].length;
-const itemCount = [...game.matchAll(/\\{id:'[a-z-]+',name:'[^']+',cost:/g)].length;
+const heroCount = [...game.matchAll(/\{id:'[a-z-]+',name:'/g)].length;
+const itemCount = [...game.matchAll(/\{id:'[a-z-]+',name:'[^']+',cost:/g)].length;
 if (heroCount !== 23) {
   console.error('Expected 23 hero definitions, found', heroCount);
   process.exit(1);
