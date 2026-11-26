@@ -55,6 +55,7 @@ Touch devices receive a virtual joystick, attack, dodge and skill buttons.
 - ART_BIBLE.md: texture map, material rules and hero silhouette guide
 - TEXTURE_ATLAS.md: source atlas cell map and material assignments
 - MODEL_PIPELINE.md: target specifications for production hero models and animation
+- GAME_BIBLE_RU.md: complete game design bible, current mechanics, heroes, items, AI, map, controls and roadmap
 
 ## Deploy
 
